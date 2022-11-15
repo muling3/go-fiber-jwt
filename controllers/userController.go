@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/muling3/go-fiber-jwt/data"
+	"github.com/muling3/go-fiber-jwt/db"
 	"github.com/muling3/go-fiber-jwt/models"
 )
 
@@ -17,9 +17,19 @@ func HomeRoute(ctx *fiber.Ctx) error {
 }
 
 func GetAllUsers(ctx *fiber.Ctx) error {
+	users, err := db.FetchUsers()
+
+	if err != nil {
+		ctx.SendStatus(fiber.StatusInternalServerError)
+		return ctx.JSON(fiber.Map{
+			"ok":    false,
+			"message": "Error fetching users",
+		})
+	}
+
 	return ctx.JSON(fiber.Map{
 		"ok":    true,
-		"users": data.GetUsers(),
+		"users": users,
 	})
 }
 
@@ -39,13 +49,12 @@ func GetUser(ctx *fiber.Ctx) error {
 
 	i, _ := strconv.Atoi(id)
 
-	user := data.GetUser(i)
-
-	if user.Id == 0 {
+	user, err := db.GetUserById(i)
+	if err != nil {
 		ctx.SendStatus(fiber.StatusNotFound)
 		return ctx.JSON(fiber.Map{
 			"ok":      false,
-			"message": "User not found",
+			"message": err.Error(),
 		})
 	}
 
@@ -67,13 +76,60 @@ func CreateUser(ctx *fiber.Ctx) error {
 		})
 	}
 
-	user := data.AddUser(usr)
+	id, err := db.RegisterUser(usr)
+
+	if err != nil {
+		ctx.SendStatus(fiber.StatusBadRequest)
+		return ctx.JSON(fiber.Map{
+			"ok":      false,
+			"message": "Error creating user",
+		})
+	}
 
 	ctx.SendStatus(fiber.StatusCreated)
 	return ctx.JSON(fiber.Map{
 		"ok":      true,
 		"message": "User created successfully",
-		"user":    user,
+		"userId":  id,
+	})
+}
+
+func UpdateUser(ctx *fiber.Ctx) error {
+	id := ctx.Params("id")
+
+	if id == "" {
+		ctx.SendStatus(fiber.StatusBadRequest)
+		return ctx.JSON(fiber.Map{
+			"ok":      false,
+			"message": "Id is required",
+		})
+	}
+
+	i, _ := strconv.Atoi(id)
+
+	var usr models.User
+
+	if err := ctx.BodyParser(&usr); err != nil {
+		ctx.SendStatus(fiber.StatusInternalServerError)
+		return ctx.JSON(fiber.Map{
+			"ok":      false,
+			"message": err.Error(),
+		})
+	}
+
+	u, err := db.UpdateUser(i, usr)
+	if err != nil {
+		ctx.SendStatus(fiber.StatusBadRequest)
+		return ctx.JSON(fiber.Map{
+			"ok":      false,
+			"message": err.Error(),
+		})
+	}
+
+	ctx.SendStatus(fiber.StatusAccepted)
+	return ctx.JSON(fiber.Map{
+		"ok":   true,
+		"user": u,
 	})
 }
 
@@ -90,7 +146,8 @@ func DeleteUser(ctx *fiber.Ctx) error {
 
 	i, _ := strconv.Atoi(id)
 
-	if err := data.RemoveUser(i); err != nil {
+	err := db.RemoveUser(i)
+	if err != nil {
 		ctx.SendStatus(fiber.StatusBadRequest)
 		return ctx.JSON(fiber.Map{
 			"ok":      false,

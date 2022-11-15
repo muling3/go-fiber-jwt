@@ -7,7 +7,8 @@ import (
 
 	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/gofiber/fiber/v2"
-	"github.com/muling3/go-fiber-jwt/data"
+	"github.com/muling3/go-fiber-jwt/db"
+	"github.com/muling3/go-fiber-jwt/models"
 )
 
 const AccessSecret = "access_secret"
@@ -19,13 +20,13 @@ func Login(ctx *fiber.Ctx) error {
 	password := ctx.FormValue("password")
 
 	logger.Printf("Username: %v, Password: %v", username, password)
-	user, err := data.Login(username, password)
+	user, err := db.Login(models.User{Username: username, Password: password})
 
 	if err != nil {
 		ctx.SendStatus(fiber.StatusBadRequest)
 		return ctx.JSON(fiber.Map{
 			"ok":      false,
-			"message": err.Error(),
+			"message": err,
 		})
 	}
 
@@ -36,7 +37,7 @@ func Login(ctx *fiber.Ctx) error {
 		Subject:   user.Username,
 		Issuer:    "muling3",
 		IssuedAt:  jwt.NewTime(float64(now.Unix())),
-		ExpiresAt: jwt.NewTime(float64(now.Add(time.Minute * 4).Unix())),
+		ExpiresAt: jwt.NewTime(float64(now.Add(time.Minute * 10).Unix())),
 	}
 
 	claims := jwt.NewWithClaims(jwt.GetSigningMethod(jwt.SigningMethodHS256.Name), c)
@@ -55,7 +56,7 @@ func Login(ctx *fiber.Ctx) error {
 	cookie := fiber.Cookie{
 		Name:     "access_token",
 		Value:    token,
-		Expires:  time.Now().Add(time.Minute * 5),
+		Expires:  time.Now().Add(time.Minute * 15),
 		HTTPOnly: true,
 	}
 
