@@ -8,7 +8,8 @@ import (
 
 func ConfigureUserRoutes(app *fiber.App) {
 	app.Post("/login", userCtrl.Login)
-
+	app.Post("/", userCtrl.CreateUser)
+	
 	//protecting the routes below with a custom jwt middleware
 	app.Use(middlewares.JwtMiddleware)
 
@@ -17,7 +18,6 @@ func ConfigureUserRoutes(app *fiber.App) {
 	app.Get("/users", userCtrl.GetAllUsers)
 	app.Get("/:id", userCtrl.GetUser)
 
-	app.Post("/", userCtrl.CreateUser)
 	app.Post("/logout", userCtrl.Logout)
 
 	app.Put("/:id", userCtrl.UpdateUser)
